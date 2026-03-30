@@ -71,42 +71,27 @@ Apólices: ${apolices.length ? apolices.map(f => f.name).join(", ") : "Nenhuma"}
 Faturas:  ${faturas.length  ? faturas.map(f  => f.name).join(", ") : "Nenhuma"}
   `.trim();
 
-  // Monta anexos — apólices + faturas em base64
-  const attachments = [];
-  for (const file of [...apolices, ...faturas]) {
-    try {
-      const data = await readB64(file);
-      attachments.push({ name: file.name, data, type: "application/pdf" });
-    } catch {}
-  }
-
-  const payload = {
-    service_id:   EJS_SERVICE_ID,
-    template_id:  EJS_TEMPLATE_ID,
-    user_id:      EJS_PUBLIC_KEY,
-    template_params: {
-      to_email:      DEST_EMAIL,
-      empresa:       form.empresa,
-      nome:          form.nome,
-      email_cliente: form.email,
-      telefone:      form.telefone,
-      score:         "—",
-      body,
-    },
-  };
-
-  // Adiciona anexos se houver
-  if (attachments.length > 0) {
-    payload.attachments = attachments;
-  }
-
   const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      service_id:   EJS_SERVICE_ID,
+      template_id:  EJS_TEMPLATE_ID,
+      user_id:      EJS_PUBLIC_KEY,
+      template_params: {
+        to_email:      DEST_EMAIL,
+        empresa:       form.empresa,
+        nome:          form.nome,
+        email_cliente: form.email,
+        telefone:      form.telefone,
+        score:         "—",
+        body,
+      },
+    }),
   });
 
-  if (!res.ok) throw new Error(`EmailJS: ${res.status}`);
+  const responseText = await res.text();
+  if (!res.ok) throw new Error(`EmailJS ${res.status}: ${responseText}`);
 };
 
 // ══════════════════════════════════════════════════════════════════
@@ -391,10 +376,14 @@ export default function App() {
             <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:26, fontWeight:800, color:C.navy, marginBottom:12 }}>
               Dados enviados com sucesso!
             </div>
-            <p style={{ fontSize:15, color:C.gray, maxWidth:460, margin:"0 auto 28px", lineHeight:1.8 }}>
-              O consultor CargaPro recebeu suas informações e documentos.<br/>
+            <p style={{ fontSize:15, color:C.gray, maxWidth:460, margin:"0 auto 20px", lineHeight:1.8 }}>
+              O consultor CargaPro recebeu suas informações.<br/>
               <b style={{ color:C.dark }}>Retorno em até 24h</b> com diagnóstico e proposta personalizada.
             </p>
+            <div style={{ background:"#fff3e0", border:"1px solid #f97316", borderRadius:10, padding:"14px 18px", maxWidth:460, margin:"0 auto 28px", textAlign:"left", fontSize:13, color:"#7c3d00", lineHeight:1.7 }}>
+              <b>📎 Envie também os PDFs via WhatsApp:</b><br/>
+              Para uma análise completa, encaminhe sua <b>apólice</b> e <b>última fatura</b> pelo WhatsApp abaixo. Nosso consultor já vai estar esperando!
+            </div>
 
             {/* Resumo do que foi enviado */}
             <div style={{ background:C.grayLt, borderRadius:12, padding:"18px 22px", textAlign:"left", maxWidth:480, margin:"0 auto 28px", border:`1px solid ${C.grayBd}` }}>
