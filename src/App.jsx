@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 //  EmailJS — credenciais já configuradas
 // ══════════════════════════════════════════════════════════════════
 const EJS_SERVICE_ID  = "service_5fs3ror";
-const EJS_TEMPLATE_ID = "template_dhkt3ur";
+const EJS_TEMPLATE_ID = "template_ezzxggh";
 const EJS_PUBLIC_KEY  = "YaS19i6KzKLzHgm7m";
 const DEST_EMAIL      = "minatti@cargapro.com.br";
 
