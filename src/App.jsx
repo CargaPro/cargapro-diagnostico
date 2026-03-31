@@ -1,12 +1,8 @@
 import { useState, useRef } from "react";
 
 // ══════════════════════════════════════════════════════════════════
-//  EmailJS — credenciais já configuradas
+//  Resend — via função serverless no Vercel (/api/send)
 // ══════════════════════════════════════════════════════════════════
-const EJS_SERVICE_ID  = "service_5fs3ror";
-const EJS_TEMPLATE_ID = "template_ezzxggh";
-const EJS_PUBLIC_KEY  = "YaS19i6KzKLzHgm7m";
-const DEST_EMAIL      = "minatti@cargapro.com.br";
 
 // ── CORES ─────────────────────────────────────────────────────────
 const C = {
@@ -27,71 +23,50 @@ const readB64 = (file) => new Promise((res, rej) => {
   r.readAsDataURL(file);
 });
 
-// ── ENVIO EMAIL ───────────────────────────────────────────────────
-const sendEmail = async (form, apolices, faturas) => {
-  const body = `
-NOVO LEAD — ${form.empresa}
-Data: ${fmtDate()}
+// ── ENVIO VIA RESEND (serverless) ────────────────────────────────
+const sendForm = async (form, apolices, faturas) => {
+  // Converte PDFs para base64
+  const attachments = [];
+  for (const file of [...apolices, ...faturas]) {
+    try {
+      const data = await readB64(file);
+      attachments.push({ name: file.name, data });
+    } catch {}
+  }
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CONTATO
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Nome:       ${form.nome}
-E-mail:     ${form.email}
-WhatsApp:   ${form.telefone}
-Empresa:    ${form.empresa}
-CNPJ:       ${form.cnpj || "Não informado"}
-Frota:      ${form.frota || "Não informado"}
+  const docsInfo = [
+    apolices.length ? `Apólices: ${apolices.map(f=>f.name).join(", ")}` : "Sem apólice",
+    faturas.length  ? `Fatura: ${faturas.map(f=>f.name).join(", ")}`    : "Sem fatura",
+  ].join(" | ");
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-OPERAÇÃO
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Rotas:                      ${form.rotas}
-Tipo de carga:              ${form.cargas}
-Valor médio/viagem:         ${form.valor_medio || "Não informado"}
-Média de viagens/mês:       ${form.viagens_mes || "Não informado"}
-Valor máximo por viagem:    ${form.valor_maximo || "Não informado"}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SEGURO ATUAL
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Seguradora:                 ${form.seguradora || "Não informada"}
-Coberturas atuais:          ${form.coberturas}
-Sinistros (2 anos):         ${form.sinistros || "Não informado"}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-OBSERVAÇÕES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${form.obs || "Nenhuma"}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-DOCUMENTOS ENVIADOS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Apólices: ${apolices.length ? apolices.map(f => f.name).join(", ") : "Nenhuma"}
-Faturas:  ${faturas.length  ? faturas.map(f  => f.name).join(", ") : "Nenhuma"}
-  `.trim();
-
-  const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+  const res = await fetch("/api/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      service_id:   EJS_SERVICE_ID,
-      template_id:  EJS_TEMPLATE_ID,
-      user_id:      EJS_PUBLIC_KEY,
-      template_params: {
-        to_email:      DEST_EMAIL,
-        empresa:       form.empresa,
-        nome:          form.nome,
-        email_cliente: form.email,
-        telefone:      form.telefone,
-        score:         "—",
-        body,
+      fields: {
+        empresa:      form.empresa,
+        nome:         form.nome,
+        email:        form.email,
+        telefone:     form.telefone,
+        cnpj:         form.cnpj         || "Não informado",
+        frota:        form.frota        || "Não informado",
+        rotas:        form.rotas,
+        cargas:       form.cargas,
+        valor_medio:  form.valor_medio  || "Não informado",
+        viagens_mes:  form.viagens_mes  || "Não informado",
+        valor_maximo: form.valor_maximo || "Não informado",
+        seguradora:   form.seguradora   || "Não informada",
+        coberturas:   form.coberturas,
+        sinistros:    form.sinistros    || "Não informado",
+        observacoes:  form.obs          || "Nenhuma",
+        docs_info:    docsInfo,
       },
+      attachments,
     }),
   });
 
   const responseText = await res.text();
-  if (!res.ok) throw new Error(`EmailJS ${res.status}: ${responseText}`);
+  if (!res.ok) throw new Error(`Envio ${res.status}: ${responseText}`);
 };
 
 // ══════════════════════════════════════════════════════════════════
@@ -198,7 +173,7 @@ export default function App() {
   const handleSend = async () => {
     setStep(2);
     try {
-      await sendEmail(form, apolices, faturas);
+      await sendForm(form, apolices, faturas);
       setStep(3);
     } catch(e) {
       console.error(e);
